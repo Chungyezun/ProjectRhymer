@@ -5,7 +5,7 @@ import re
 
 # Type alias
 SimilarityFn = Callable[[list[str], list[str]], bool]
-MappingFn = Callable[[str], list[str]]
+MappingFn = Callable[[str], list[list[str]]]
 
 # Removes numerics in the second item of given pair.
 def _remove_numerics(pair: tuple[str, str]):
@@ -54,12 +54,12 @@ def _encode_soundex(word: str):
     elif len(code) == 3:
         code += '0'
     
-    return code
+    return list(code)
 
 def _to_soundex_pair(word: str):
     return (word, _encode_soundex(word))
 
-_wordlist = nltk.corpus.words.words()
+_wordlist: list[str] = nltk.corpus.words.words()
 # Lazy init _cmu.
 _cmu: None | nltk.Index = None
 # Lazy init _soundex.
@@ -97,7 +97,7 @@ def _is_similar(As: list[list[str]], Bs: list[list[str]], similarity_func: Simil
 
 # Map a word to its pronunciations according to CMU dictionary.
 # Lazy init _cmu.
-def mapping_cmu(word: str) -> list[str]:
+def mapping_cmu(word: str) -> list[list[str]]:
     global _cmu
     if _cmu is None:
         _cmu = nltk.Index(map(_remove_numerics, nltk.corpus.cmudict.entries()))
@@ -105,7 +105,7 @@ def mapping_cmu(word: str) -> list[str]:
 
 # Map a word to its soundex representation. Returns empty list if it is not an alphabet word.
 # Lazy init _soundex.
-def mapping_soundex(word: str) -> list[str]:
+def mapping_soundex(word: str) -> list[list[str]]:
     global _soundex
     if _soundex is None:
         _soundex = nltk.Index(map(_to_soundex_pair, filter(lambda x: x.isalpha(), _wordlist)))
