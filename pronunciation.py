@@ -133,5 +133,5 @@ def get_similar(word: str, mapping_func: MappingFn, similarity_func: SimilarityF
 # Get all similar words for each word in the given sentences in terms of pronunciation.
 def get_similars(tokens: list[str], mapping_func: MappingFn, similarity_func: SimilarityFn):
     return list(map(
-        lambda x: (x, list(get_similars(x, mapping_func, similarity_func))),
+        lambda x: (x, list(get_similar(x, mapping_func, similarity_func))),
         tokens))
