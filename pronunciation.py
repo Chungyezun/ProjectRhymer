@@ -3,14 +3,11 @@ import nltk
 from string import digits
 import re
 
+import misc
+
 # Type alias
 SimilarityFn = Callable[[list[str], list[str]], bool]
 MappingFn = Callable[[str], list[list[str]]]
-
-# Removes numerics in the second item of given pair.
-def _remove_numerics(pair: tuple[str, str]):
-    return (pair[0],
-    ''.join(w.translate({ord(k): None for k in digits}) for w in pair[1]))
 
 # Code by [https://skyjwoo.tistory.com/entry/%EC%9D%B4%EB%A6%84-%EC%9C%A0%EC%82%AC%EB%8F%84-%EA%B5%AC%ED%95%98%EA%B8%B0-soundex-algorithm]
 def _encode_soundex(word: str):
@@ -61,25 +58,15 @@ def _to_soundex_pair(word: str):
 
 _wordlist: list[str] = nltk.corpus.words.words()
 # Lazy init _cmu.
-_cmu: None | nltk.Index = None
+# _cmu: None | nltk.Index = None
+_cmu: misc.LazyWrapper[nltk.Index] = misc.LazyWrapper(lambda: nltk.Index(map(misc.remove_numerics, nltk.corpus.cmudict.entries())))
 # Lazy init _soundex.
-_soundex: None | nltk.Index = None
-
-# Perform actual LCS algorithm.
-def _lcs_len(A: list[str], B: list[str]) -> int:
-    la = len(A)
-    lb = len(B)
-    dp = [[0 for i in range(lb + 1)] for j in range(la + 1)]
-    for i in range(la):
-        for j in range(lb):
-            dp[i+1][j+1] = max(dp[i][j+1], dp[i+1][j])
-            if A[i].lower() == B[j].lower():
-                dp[i+1][j+1] = max(dp[i+1][j+1], dp[i][j] + 1)
-    return dp[la][lb]
+# _soundex: None | nltk.Index = None
+_soundex: misc.LazyWrapper[nltk.Index] = misc.LazyWrapper(lambda: nltk.Index(map(_to_soundex_pair, filter(lambda x: x.isalpha(), _wordlist))))
 
 # Check similarity condition for LCS.
 def _check_similarity_lcs(A: list[str], B: list[str], rel_thres=0.5, abs_thres=2) -> bool:
-    lcs_len = _lcs_len(A, B)
+    lcs_len = misc.get_lcs_len(A, B)
     min_len = min(len(A), len(B))
     return (min_len > 0) and (lcs_len >= min_len * rel_thres) and (lcs_len >= abs_thres)
 
@@ -96,22 +83,15 @@ def _is_similar(As: list[list[str]], Bs: list[list[str]], similarity_func: Simil
     return False
 
 # Map a word to its pronunciations according to CMU dictionary.
-# Lazy init _cmu.
 def mapping_cmu(word: str) -> list[list[str]]:
-    global _cmu
-    if _cmu is None:
-        _cmu = nltk.Index(map(_remove_numerics, nltk.corpus.cmudict.entries()))
-    return _cmu[word]
+    return _cmu()[word]
 
 # Map a word to its soundex representation. Returns empty list if it is not an alphabet word.
 # Lazy init _soundex.
 def mapping_soundex(word: str) -> list[list[str]]:
-    global _soundex
-    if _soundex is None:
-        _soundex = nltk.Index(map(_to_soundex_pair, filter(lambda x: x.isalpha(), _wordlist)))
     if word.isalpha():
-        if word in _soundex:
-            return _soundex[word]
+        if word in _soundex():
+            return _soundex()[word]
         else:
             return [_encode_soundex(word)]
     else:
