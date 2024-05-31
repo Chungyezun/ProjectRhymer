@@ -59,7 +59,11 @@ index_BERT = faiss.IndexFlatL2(dimension_BERT)
 index_BERT.add(embeddings_BERT)
 
 # recommend similar semantics words (BERT)
-def recommend_semantics_BERT(tokens: list[str], top_k=10):
+def recommend_semantics_BERT(tokens: list[str], top_k=None, threshold=None):
+
+    if top_k is None and threshold is None :
+        raise ValueError("Either top_k or threshold should be used.")
+    
     similar_words_dict = {}
 
     for token in tokens:
@@ -70,9 +74,12 @@ def recommend_semantics_BERT(tokens: list[str], top_k=10):
         with torch.no_grad():
             original_outputs = BERT_model(**original_tokens)
         original_embedding = original_outputs.last_hidden_state.mean(dim=1).squeeze().numpy().reshape(1, -1)
-
-        distances, indices = index_BERT.search(original_embedding, top_k + 1)  # +1 for the token itself
-        similar_words = [words_BERT[i] for i in indices[0] if words_BERT[i] != token][:top_k]
+        distances, indices = index_BERT.search(original_embedding, len(words_BERT))
+        
+        if top_k is not None:
+            similar_words = [words_BERT[i] for i in indices[0][:top_k + 1] if words_BERT[i] != token]
+        else:
+            similar_words = [words_BERT[i] for i, dist in zip(indices[0], distances[0]) if dist <= threshold and words_BERT[i] != token]
         
         similar_words_dict[token] = similar_words
 
@@ -110,16 +117,22 @@ index_SB = faiss.IndexFlatL2(dimension_SB)
 index_SB.add(embeddings_SB)
 
 # recommend similar semantics words (sentenceBERT)
-def recommend_semantics_sentenceBERT(tokens: list[str], top_k=10):
+def recommend_semantics_sentenceBERT(tokens: list[str], top_k=None, threshold=None):
+
+    if top_k is None and threshold is None :
+        raise ValueError("Either top_k or threshold should be used.")
+    
     similar_words_dict = {}
 
     for token in tokens:
         similar_words_dict[token] = []
-
         original_embedding = sentenceBERT_model.encode(token, convert_to_tensor=True).cpu().numpy().reshape(1, -1)
+        distances, indices = index_SB.search(original_embedding, len(words_SB))
 
-        distances, indices = index_SB.search(original_embedding, top_k + 1)  # +1 for the token itself
-        similar_words = [words_SB[i] for i in indices[0] if words_SB[i] != token][:top_k]
+        if top_k is not None:
+            similar_words = [words_SB[i] for i in indices[0][:top_k + 1] if words_SB[i] != token]
+        else:
+            similar_words = [words_SB[i] for i, dist in zip(indices[0], distances[0]) if dist <= threshold and words_SB[i] != token]
         
         similar_words_dict[token] = similar_words
 
