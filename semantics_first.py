@@ -8,7 +8,9 @@ from tqdm import tqdm
 import random
 import faiss
 import pickle
+import os
 
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
 
 BERT_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -65,9 +67,6 @@ def recommend_semantics_BERT(tokens: list[str], top_k=10):
 
     output = [(word, similar_words_dict[word]) for word in similar_words_dict]
     return output
-
-
-
 
 
 
