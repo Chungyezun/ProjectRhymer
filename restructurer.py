@@ -228,10 +228,11 @@ def restructure(sentence: str) -> list[str]:
         _cnlp = None
     return res
 
-ip = '.'
-while True:
-    ip = input('> ')
-    if ip == '':
-        break
-    print(restructure(ip))
+if __name__ == '__main__':
+    ip = '.'
+    while True:
+        ip = input('> ')
+        if ip == '':
+            break
+        print(restructure(ip))
 # analyze_sent()
