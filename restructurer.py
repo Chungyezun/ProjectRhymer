@@ -48,12 +48,16 @@ def reorder_adverb(sentence: str) -> list[str]:
             return [nltk.Tree(tree.label(), outcome) for outcome in total_possiblity]
         else:
             res = []
+            last_dot = (isinstance(tree[-1], nltk.Tree) and tree[-1].label() == '.')
             # Represents tree[i:j] = [i, j)
             tree_intervals = []
             tree_intervals.append((0, advp_indexes[0]))
             for i in range(advp_cnt - 1):
                 tree_intervals.append((advp_indexes[i] + 1, advp_indexes[i + 1]))
-            tree_intervals.append((advp_indexes[-1] + 1, len(tree)))
+            if last_dot:
+                tree_intervals.append((advp_indexes[-1] + 1, len(tree) - 1))
+            else:
+                tree_intervals.append((advp_indexes[-1] + 1, len(tree)))
             tree_intervals = list(filter(lambda x: x[0] < x[1], tree_intervals))
             tree_intervals.insert(0, (0, 0))
             # print('tree_intervals:', tree_intervals)
@@ -68,9 +72,11 @@ def reorder_adverb(sentence: str) -> list[str]:
                     for a, b in zip(tree_intervals, cpt):
                         outcome.extend(tree[a[0]:a[1]])
                         outcome.extend(b)
+                    if last_dot:
+                        outcome.extend(tree[-1])
                     # Recursively extend the outcome
                     ext_outcomes = [
-                        (tree_shaker(child) if isinstance(child, nltk.Tree) and child.label() != 'ADVP' else [child])
+                        (tree_shaker(child) if isinstance(child, nltk.Tree) and child.label() != 'ADVP' and child.label() not in ',.' else [child])
                         for child in outcome
                     ]
                     total_possiblity = itertools.product(*ext_outcomes)
@@ -87,8 +93,11 @@ def reorder_adverb(sentence: str) -> list[str]:
         # , PP , -> put first, last
         # PP <-> PP? -> interchangable
         dup_trees = tree_shaker(stree)
-        res.extend(' '.join(t.leaves()) for t in dup_trees)
-    return res
+        res.append([' '.join(t.leaves()) for t in dup_trees])
+    total_possiblity = itertools.product(*res)
+    str_res = []
+    str_res.extend([' '.join(oc) for oc in total_possiblity])
+    return str_res
 
 # Get possible reorder candidates,
 # need to filter out some incorrectly grammared and different meaning sentences.
