@@ -26,6 +26,28 @@ vocab = list(BERT_tokenizer.vocab.keys())
 
 print(f"Vocab size: {len(vocab)}")
 
+# Convert Treebank POS tags to WordNet POS tags
+def get_wordnet_pos(treebank_tag):
+    if treebank_tag.startswith('J'):
+        return 'a'  # ADJECTIVE
+    elif treebank_tag.startswith('V'):
+        return 'v'  # VERB
+    elif treebank_tag.startswith('N'):
+        return 'n'  # NOUN
+    elif treebank_tag.startswith('R'):
+        return 'r'  # ADVERB
+    else:
+        return None
+
+# Get possible POS tags for a word using WordNet
+def get_possible_pos(word):
+    synsets = nltk.corpus.wordnet.synsets(word)
+    # for s in synsets:
+    #     print(s)
+    #     print(s.pos().upper())
+    pos_tags = {get_wordnet_pos(s.pos().upper()) for s in synsets}
+    return pos_tags
+
 ######################################### (BERT)
 
 def compute_embeddings(vocab, model, tokenizer):
@@ -64,7 +86,7 @@ def cosine_similarity(vec1, vec2):
 
 # Recommend similar semantics words (BERT)
 def recommend_semantics_BERT(tokens: list[str], top_k=None, threshold=None):
-    print(top_k, threshold)
+
     if top_k is None and threshold is None :
         raise ValueError("Either top_k or threshold should be used.")
     
@@ -164,3 +186,12 @@ def recommend_semantics_sentenceBERT(tokens: list[str], top_k=None, threshold=No
     return output
 
 ##############################################
+
+
+def recommend_semantics(tokens: list[(str, list[str])], model, top_k=None, threshold=None):
+    if model == "bert":
+        return recommend_semantics_BERT(tokens, top_k=top_k, threshold=threshold)
+    elif model == "sentencebert":
+        return recommend_semantics_sentenceBERT(tokens, top_k=top_k, threshold=threshold)
+    else:
+        raise ValueError("You should use given models.")

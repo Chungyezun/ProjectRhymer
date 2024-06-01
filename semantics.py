@@ -23,20 +23,28 @@ vocab = list(BERT_tokenizer.vocab.keys())
 
 print(f"Vocab size: {len(vocab)}")
 
-##################################################################### (WordNet)
-brown_ic = wn.ic(nltk.corpus.brown, False, 0.0)
-
+# Convert Treebank POS tags to WordNet POS tags
 def get_wordnet_pos(treebank_tag):
     if treebank_tag.startswith('J'):
-        return wn.ADJ
+        return 'a'  # ADJECTIVE
     elif treebank_tag.startswith('V'):
-        return wn.VERB
+        return 'v'  # VERB
     elif treebank_tag.startswith('N'):
-        return wn.NOUN
+        return 'n'  # NOUN
     elif treebank_tag.startswith('R'):
-        return wn.ADV
+        return 'r'  # ADVERB
     else:
         return None
+
+# Get possible POS tags for a word using WordNet
+def get_possible_pos(word):
+    synsets = nltk.corpus.wordnet.synsets(word)
+    pos_tags = {get_wordnet_pos(s.pos().upper()) for s in synsets}
+    return pos_tags
+
+##################################################################### (WordNet)
+
+brown_ic = wn.ic(nltk.corpus.brown, False, 0.0)
 
 def are_meanings_similar(word1, word2, threshold):
     synsets1 = wn.synsets(word1)
@@ -94,15 +102,17 @@ with open('./embeddings/vocab_embeddings.pkl', 'rb') as f:
     embeddings_BERT, words_BERT = pickle.load(f)
 
 # Recommend similar semantics words, given similar pronunciation words (BERT)
-def recommend_semantics_BERT(tokens: list[(str, list[str])], threshold=0.9):
+def recommend_semantics_BERT(tokens: list[(str, list[str])], threshold=0.8):
     embedding_dict = {word: embeddings_BERT[words_BERT.index(word)] for word in words_BERT}
     
     original_sentence = nltk.pos_tag([t[0] for t in tokens])
     new_sentences = []
     for token in tokens:
         for word_similar_pron in token[1]:
+            similar_pron_pos = get_possible_pos(word_similar_pron)
             for w in original_sentence:
-                if token[0] != w[0]:
+                original_token_pos = get_wordnet_pos(w[1])
+                if token[0] != w[0] and w[0] != "." and original_token_pos in similar_pron_pos and original_token_pos is not None:
                     if word_similar_pron in embedding_dict and w[0] in embedding_dict:
                         similar_pron_embedding = embedding_dict[word_similar_pron]
                         other_token_embedding = embedding_dict[w[0]]
@@ -138,7 +148,7 @@ if not os.path.exists('./embeddings/vocab_embeddings_sentenceBERT.pkl'):
 with open('./embeddings/vocab_embeddings_sentenceBERT.pkl', 'rb') as f:
     embeddings_SB, words_SB = pickle.load(f)
 
-def recommend_semantics_sentenceBERT(tokens: list[(str, list[str])], threshold=0.9):
+def recommend_semantics_sentenceBERT(tokens: list[(str, list[str])], threshold=0.4):
     embedding_dict = {word: embeddings_SB[words_SB.index(word)] for word in words_SB}
     
     original_sentence = nltk.pos_tag([t[0] for t in tokens])
@@ -146,8 +156,10 @@ def recommend_semantics_sentenceBERT(tokens: list[(str, list[str])], threshold=0
 
     for token in tokens:
         for word_similar_pron in token[1]:
+            similar_pron_pos = get_possible_pos(word_similar_pron)
             for w in original_sentence:
-                if token[0] != w[0]:
+                original_token_pos = get_wordnet_pos(w[1])
+                if token[0] != w[0] and w[0] != "." and original_token_pos in similar_pron_pos and original_token_pos is not None:
                     if word_similar_pron in embedding_dict and w[0] in embedding_dict:
                         similar_pron_embedding = embedding_dict[word_similar_pron]
                         other_token_embedding = embedding_dict[w[0]]
@@ -158,3 +170,12 @@ def recommend_semantics_sentenceBERT(tokens: list[(str, list[str])], threshold=0
 
     return new_sentences
 
+def recommend_semantics(tokens: list[(str, list[str])], model, threshold):
+    if model == "wordnet":
+        return recommend_semantics_wordnet(tokens, threshold=threshold)
+    elif model == "bert":
+        return recommend_semantics_BERT(tokens, threshold=threshold)
+    elif model == "sentencebert":
+        return recommend_semantics_sentenceBERT(tokens, threshold=threshold)
+    else:
+        raise ValueError("You should use given models.")
