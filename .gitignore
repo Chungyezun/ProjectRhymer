@@ -1,2 +1,5 @@
 __pycache__/
 _test.py
+
+# Ignore manual downloaded artifacts like CoreNLP Folder
+artifacts/
