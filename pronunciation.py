@@ -97,6 +97,9 @@ def mapping_soundex(word: str) -> list[list[str]]:
     else:
         return []
 
+# TODO: add [https://github.com/DevTae/PronunciationEvaluator/blob/main/demo.ipynb]
+# Support to edit distance: [https://koreascience.kr/article/CFKO201712470015309.pdf]
+
 # Get all similar words for the given word in terms of pronunciation.
 def get_similar(word: str, mapping_func: MappingFn, similarity_func: SimilarityFn):
     result = set()
@@ -115,3 +118,18 @@ def get_similars(tokens: list[str], mapping_func: MappingFn, similarity_func: Si
     return list(map(
         lambda x: (x, list(get_similar(x, mapping_func, similarity_func))),
         tokens))
+
+def _calc_rhymeness_lcs(word_a: str, word_b: str, mapping_func: MappingFn) -> float:
+    As = mapping_func(word_a)
+    Bs = mapping_func(word_b)
+    res = 0
+    for A in As:
+        for B in Bs:
+            lcs_len = misc.get_lcs_len(A, B)
+            min_len = min(len(A), len(B))
+            if min_len > 0:
+                res = max(res, lcs_len / min_len)
+    return res
+
+def calc_rhymeness_lcs(mapping_func: MappingFn):
+    return lambda A, B: _calc_rhymeness_lcs(A, B, mapping_func)
