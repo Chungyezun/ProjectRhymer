@@ -136,7 +136,7 @@ index_SB.add(embeddings_SB)
 
 # recommend similar semantics words (sentenceBERT)
 def recommend_semantics_sentenceBERT(tokens: list[str], top_k=None, threshold=None):
-    print(top_k, threshold)
+
     if top_k is None and threshold is None :
         raise ValueError("Either top_k or threshold should be used.")
     
