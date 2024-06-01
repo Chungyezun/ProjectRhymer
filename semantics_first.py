@@ -9,6 +9,7 @@ import random
 import faiss
 import pickle
 import os
+from itertools import chain
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'TRUE'
 
@@ -58,6 +59,9 @@ dimension_BERT = embeddings_BERT.shape[1]
 index_BERT = faiss.IndexFlatL2(dimension_BERT)
 index_BERT.add(embeddings_BERT)
 
+def cosine_similarity(vec1, vec2):
+    return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
+
 # recommend similar semantics words (BERT)
 def recommend_semantics_BERT(tokens: list[str], top_k=None, threshold=None):
 
@@ -75,13 +79,27 @@ def recommend_semantics_BERT(tokens: list[str], top_k=None, threshold=None):
             original_outputs = BERT_model(**original_tokens)
         original_embedding = original_outputs.last_hidden_state.mean(dim=1).squeeze().numpy().reshape(1, -1)
         distances, indices = index_BERT.search(original_embedding, len(words_BERT))
-        
+
         if top_k is not None:
             similar_words = [words_BERT[i] for i in indices[0][:top_k + 1] if words_BERT[i] != token]
         else:
             similar_words = [words_BERT[i] for i, dist in zip(indices[0], distances[0]) if dist <= threshold and words_BERT[i] != token]
-        
-        similar_words_dict[token] = similar_words
+
+        # similar_words_dict[token] = similar_words
+
+        # Filter synonyms using WordNet
+        word_synsets = wn.synsets(token)
+        word_synonyms = set(chain.from_iterable([syn.lemma_names() for syn in word_synsets]))
+        filtered_synonyms = [word for word in similar_words if word in word_synonyms]
+        similar_words_dict[token] = filtered_synonyms
+
+        # cos_sim_threshold = 0.95
+        # similar_embeddings = [embeddings_BERT[i] for i in indices[0] if words_BERT[i] != token]
+        # cosine_similarities = [cosine_similarity(original_embedding, emb) for emb in similar_embeddings]
+        # filtered_synonyms = [words_BERT[i] for i, sim in zip(indices[0], cosine_similarities) if sim >= cos_sim_threshold]
+        # similar_words_dict[token] = filtered_synonyms
+
+
 
     output = [(word, similar_words_dict[word]) for word in similar_words_dict]
     return output
@@ -134,7 +152,13 @@ def recommend_semantics_sentenceBERT(tokens: list[str], top_k=None, threshold=No
         else:
             similar_words = [words_SB[i] for i, dist in zip(indices[0], distances[0]) if dist <= threshold and words_SB[i] != token]
         
-        similar_words_dict[token] = similar_words
+        # similar_words_dict[token] = similar_words
+
+        # Filter synonyms using WordNet
+        word_synsets = wn.synsets(token)
+        word_synonyms = set(chain.from_iterable([syn.lemma_names() for syn in word_synsets]))
+        filtered_synonyms = [word for word in similar_words if word in word_synonyms]
+        similar_words_dict[token] = filtered_synonyms
 
     output = [(word, similar_words_dict[word]) for word in similar_words_dict]
     return output
