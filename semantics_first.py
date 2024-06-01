@@ -62,9 +62,9 @@ index_BERT.add(embeddings_BERT)
 def cosine_similarity(vec1, vec2):
     return np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
 
-# recommend similar semantics words (BERT)
+# Recommend similar semantics words (BERT)
 def recommend_semantics_BERT(tokens: list[str], top_k=None, threshold=None):
-
+    print(top_k, threshold)
     if top_k is None and threshold is None :
         raise ValueError("Either top_k or threshold should be used.")
     
@@ -136,7 +136,7 @@ index_SB.add(embeddings_SB)
 
 # recommend similar semantics words (sentenceBERT)
 def recommend_semantics_sentenceBERT(tokens: list[str], top_k=None, threshold=None):
-
+    print(top_k, threshold)
     if top_k is None and threshold is None :
         raise ValueError("Either top_k or threshold should be used.")
     

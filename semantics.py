@@ -1,10 +1,29 @@
 import nltk
 from nltk.corpus import wordnet as wn
-# from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer, util
 from transformers import BertTokenizer, BertModel
 import torch
 import numpy as np
+from tqdm import tqdm
+import random
+import faiss
+import pickle
+import os
+from itertools import chain
 
+BERT_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+BERT_model = BertModel.from_pretrained('bert-base-uncased')
+sentenceBERT_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+
+# Use wordnet vocab (140K)
+# vocab = list(set([word for syn in wn.all_synsets() for word in syn.lemma_names()]))
+
+# Use BERT vocab (30K)
+vocab = list(BERT_tokenizer.vocab.keys())
+
+print(f"Vocab size: {len(vocab)}")
+
+##################################################################### (WordNet)
 brown_ic = wn.ic(nltk.corpus.brown, False, 0.0)
 
 def get_wordnet_pos(treebank_tag):
@@ -36,58 +55,106 @@ def are_meanings_similar(word1, word2, threshold):
 
 def recommend_semantics_wordnet(tokens : list[(str, list[str])], threshold = 0.8):
     original_sentence = nltk.pos_tag([t[0] for t in tokens])
+    new_sentences = []
     for token in tokens:
         for word_similar_pron in token[1]:
             for w in original_sentence:
                 if token[0] != w[0] and are_meanings_similar(word_similar_pron, w[0], threshold):
-                    print("original word: ", token[0], " , ", "replaced word: ", w[0], " , ", "similar word: ", word_similar_pron)
+                    new_sentence = [word_similar_pron if element[0] == w[0] else element[0] for element in original_sentence]
+                    new_sentences.append(new_sentence)
 
-BERT_tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-BERT_model = BertModel.from_pretrained('bert-base-uncased')
-# sentenceBERT_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+    return new_sentences
 
-def recommend_semantics_BERT(tokens : list[(str, list[str])], threshold = 0.9):
-    original_sentence = " ".join([t[0] for t in tokens])
-    original_tokens = BERT_tokenizer(original_sentence, return_tensors='pt', padding=True, truncation=True)
-    tokenized_texts = BERT_tokenizer.tokenize(original_sentence)
-    with torch.no_grad():
-        original_outputs = BERT_model(**original_tokens)
-    similar_pron_embeddings = {}
+############################################################################ (BERT)
+
+def compute_embeddings(vocab, model, tokenizer):
+    embeddings = []
+    words = []
+
+    for word in tqdm(vocab):
+        tokens = tokenizer(word, return_tensors='pt')
+        with torch.no_grad():
+            outputs = model(**tokens)
+        embedding = outputs.last_hidden_state.mean(dim=1).squeeze().numpy()
+        embeddings.append(embedding)
+        words.append(word)
+    
+    return np.array(embeddings), words
+
+if not os.path.exists('./embeddings/vocab_embeddings.pkl'):
+    # Calculate embeddings (BERT)
+    embeddings_BERT, words = compute_embeddings(vocab, BERT_model, BERT_tokenizer)
+
+    # Save embeddings (BERT)
+    with open('./embeddings/vocab_embeddings.pkl', 'wb') as f:
+        pickle.dump((embeddings_BERT, words), f)
+
+# Load embeddings (BERT)
+with open('./embeddings/vocab_embeddings.pkl', 'rb') as f:
+    embeddings_BERT, words_BERT = pickle.load(f)
+
+# Recommend similar semantics words, given similar pronunciation words (BERT)
+def recommend_semantics_BERT(tokens: list[(str, list[str])], threshold=0.9):
+    embedding_dict = {word: embeddings_BERT[words_BERT.index(word)] for word in words_BERT}
+    
+    original_sentence = nltk.pos_tag([t[0] for t in tokens])
+    new_sentences = []
     for token in tokens:
         for word_similar_pron in token[1]:
-            word_tokens = BERT_tokenizer(word_similar_pron,return_tensors='pt', padding=True, truncation=True)
-            with torch.no_grad():
-                word_outputs = BERT_model(**word_tokens)
-            word_embedding = word_outputs.last_hidden_state.mean(dim=1).squeeze()
-            similar_pron_embeddings[word_similar_pron] = word_embedding
+            for w in original_sentence:
+                if token[0] != w[0]:
+                    if word_similar_pron in embedding_dict and w[0] in embedding_dict:
+                        similar_pron_embedding = embedding_dict[word_similar_pron]
+                        other_token_embedding = embedding_dict[w[0]]
+                        similarity = np.dot(similar_pron_embedding, other_token_embedding) / (np.linalg.norm(similar_pron_embedding) * np.linalg.norm(other_token_embedding))
+                        if similarity >= threshold:
+                            new_sentence = [word_similar_pron if element[0] == w[0] else element[0] for element in original_sentence]
+                            new_sentences.append(new_sentence)
 
-    similarities = {}
-    for original_token in tokenized_texts:
-        token_id = BERT_tokenizer.convert_tokens_to_ids(original_token)
-        token_index = original_tokens['input_ids'][0].tolist().index(token_id)
-        token_embedding = original_outputs.last_hidden_state[0][token_index]
-        for word, word_embedding in similar_pron_embeddings.items():
-            similarity = np.dot(token_embedding.numpy(), word_embedding.numpy()) / (np.linalg.norm(token_embedding.numpy()) * np.linalg.norm(word_embedding.numpy()))
-            similarities[(original_token, word)] = similarity
+    return new_sentences
+
+########################################################### (sentenceBERT)
+
+def compute_embeddings_sentenceBERT(vocab, model):
+    embeddings = []
+    words = []
+
+    for word in tqdm(vocab):
+        embedding = model.encode(word, convert_to_tensor=True).cpu().numpy()
+        embeddings.append(embedding)
+        words.append(word)
     
-    most_similar_word = max(similarities, key=similarities.get)
-    return most_similar_word
+    return np.array(embeddings), words
 
+if not os.path.exists('./embeddings/vocab_embeddings_sentenceBERT.pkl'):
+    # Calculate embeddings (sentenceBERT)
+    embeddings, words = compute_embeddings_sentenceBERT(vocab, sentenceBERT_model)
 
-        
+    # Save embeddings (sentenceBERT)
+    with open('./embeddings/vocab_embeddings_sentenceBERT.pkl', 'wb') as f:
+        pickle.dump((embeddings, words), f)
 
+# Load embeddings (sentenceBERT)
+with open('./embeddings/vocab_embeddings_sentenceBERT.pkl', 'rb') as f:
+    embeddings_SB, words_SB = pickle.load(f)
 
+def recommend_semantics_sentenceBERT(tokens: list[(str, list[str])], threshold=0.9):
+    embedding_dict = {word: embeddings_SB[words_SB.index(word)] for word in words_SB}
+    
+    original_sentence = nltk.pos_tag([t[0] for t in tokens])
+    new_sentences = []
 
+    for token in tokens:
+        for word_similar_pron in token[1]:
+            for w in original_sentence:
+                if token[0] != w[0]:
+                    if word_similar_pron in embedding_dict and w[0] in embedding_dict:
+                        similar_pron_embedding = embedding_dict[word_similar_pron]
+                        other_token_embedding = embedding_dict[w[0]]
+                        similarity = np.dot(similar_pron_embedding, other_token_embedding) / (np.linalg.norm(similar_pron_embedding) * np.linalg.norm(other_token_embedding))
+                        if similarity >= threshold:
+                            new_sentence = [word_similar_pron if element[0] == w[0] else element[0] for element in original_sentence]
+                            new_sentences.append(new_sentence)
 
+    return new_sentences
 
-
-# def recommend_semantics_sentenceBERT(tokens : list[(str, list[str])], threshold = 0.9):
-#     original_sentence = [" ".join(t[0]) for t in tokens]
-
-#     embeddings = model.encode(sentences, convert_to_tensor=True)
-
-#     similarity_matrix = util.pytorch_cos_sim(embeddings, embeddings)
-
-#     for i in range(len(sentences)):
-#         for j in range(len(sentences)):
-#             print(f"Similarity between \"{sentences[i]}\" and \"{sentences[j]}\": {similarity_matrix[i][j]:.4f}")
