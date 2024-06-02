@@ -14,11 +14,11 @@ import restructurer as R
 import evaluation as E
 
 # === [ Configuration ] ===
-benchmark_mode: bool = False
+benchmark_mode: bool = True
 benchmark_file = 'inputs.txt'
 benchmark_pipeline_replace = True
-benchmark_pipeline_restruct = False
-benchmark_savefile = 'result.csv'
+benchmark_pipeline_restruct = True
+benchmark_savefile = 'result_replace_restruct.csv'
 benchmark_topk: int = 10
 
 pronunciation_mapping = P.mapping_soundex
