@@ -1,6 +1,7 @@
 from typing import Callable
 import nltk
 import itertools
+import numpy as np
 
 import misc
 
@@ -31,24 +32,25 @@ def _calc_rhymeness_edit(word_a: str, word_b: str) -> float:
     for A in As:
         for B in Bs:
             edit_dist = nltk.edit_distance(A, B)
-            res = max(res, 1 / (edit_dist + 1))
+            # res = max(res, 1 / (edit_dist + 1))
+            res = max(res, 1 - (edit_dist / max(1, len(A), len(B))))
     return res
 
 def rmetric_cmu_w2w(word_a: str, word_b: str) -> float:
     # TODO: how about using activation function on this?
-    return _calc_rhymeness_lcs(word_a, word_b)
+    return _calc_rhymeness_edit(word_a, word_b)
 
 def rmetric_cmu_sent(sentence: str) -> float:
     words = nltk.word_tokenize(sentence)
     words = list(filter(lambda x: x != "", words))
-    sent_rhymeness = [rmetric_cmu_w2w(wa[1], wb[1]) for wa in enumerate(words) for wb in enumerate(words) if wa[0] != wb[0]]
+    sent_rhymeness = [[rmetric_cmu_w2w(wa[1], wb[1]) if wa[0] != wb[0] else 0.0 for wa in enumerate(words)] for wb in enumerate(words)]
     # TODO: use mean?
-    return sum(sent_rhymeness)
+    return sum(np.mean(sorted(rs_single, reverse=True)[:3]) for rs_single in sent_rhymeness)
 
 def _positional_weight(pos_a: int, pos_b: int, sent_len_a: int, sent_len_b: int) -> float:
     def get_relative_pos(idx: int, length: int) -> float:
         return (idx + 0.5) / length
-    return 1 - abs(get_relative_pos(pos_a, sent_len_a) - get_relative_pos(pos_b, sent_len_b))
+    return 1 - (abs(get_relative_pos(pos_a, sent_len_a) - get_relative_pos(pos_b, sent_len_b)) / 2)
 
 def rmetric_cmu_s2s(sent_a: str, sent_b: str) -> float:
     words_a = nltk.word_tokenize(sent_a)
@@ -57,13 +59,13 @@ def rmetric_cmu_s2s(sent_a: str, sent_b: str) -> float:
     words_b = list(filter(lambda x: x != "", words_b))
     len_a = len(words_a)
     len_b = len(words_b)
-    rs_arr = []
+    rs_arr: list[list[float]] = []
     for idx_a, word_a in enumerate(words_a):
         rs_arr.append([
             (rmetric_cmu_w2w(word_a, word_b) * _positional_weight(idx_a, idx_b, len_a, len_b))
             for idx_b, word_b in enumerate(words_b)])
     # TODO: try different aggregate function?
-    return sum(max(rs_single) for rs_single in rs_arr)
+    return sum(np.mean(sorted(rs_single, reverse=True)[:3]) * 2 for rs_single in rs_arr)
 
 # sent-sent rhymeness
 # in-sent rhymeness

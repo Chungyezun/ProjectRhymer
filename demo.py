@@ -14,7 +14,7 @@ import restructurer as R
 import evaluation as E
 
 # === [ Configuration ] ===
-benchmark_mode: bool = True
+benchmark_mode: bool = False
 benchmark_file = 'inputs.txt'
 benchmark_pipeline_replace = True
 benchmark_pipeline_restruct = False
