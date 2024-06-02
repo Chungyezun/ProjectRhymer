@@ -36,7 +36,7 @@ def _calc_rhymeness_edit(word_a: str, word_b: str) -> float:
 
 def rmetric_cmu_w2w(word_a: str, word_b: str) -> float:
     # TODO: how about using activation function on this?
-    return _calc_rhymeness_edit(word_a, word_b)
+    return _calc_rhymeness_lcs(word_a, word_b)
 
 def rmetric_cmu_sent(sentence: str) -> float:
     words = nltk.word_tokenize(sentence)
