@@ -195,3 +195,4 @@ def recommend_semantics(tokens: list[(str, list[str])], model, top_k=None, thres
         return recommend_semantics_sentenceBERT(tokens, top_k=top_k, threshold=threshold)
     else:
         raise ValueError("You should use given models.")
+    
