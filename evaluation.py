@@ -9,8 +9,9 @@ _cmu: misc.LazyWrapper[nltk.Index] = misc.LazyWrapper(lambda: nltk.Index(map(mis
 def _convert_to_cmu(token: str) -> list[list[str]]:
     # if token.lower() not in _cmu():
     #     print('(Token:', token, ' not found on CMU)')
-    return _cmu()[token]
+    return _cmu()[token.lower()]
 
+# TODO: Use nltk.edit_distance?
 def _calc_rhymeness_lcs(word_a: str, word_b: str) -> float:
     As = _convert_to_cmu(word_a)
     Bs = _convert_to_cmu(word_b)
@@ -23,9 +24,19 @@ def _calc_rhymeness_lcs(word_a: str, word_b: str) -> float:
                 res = max(res, lcs_len / min_len)
     return res
 
+def _calc_rhymeness_edit(word_a: str, word_b: str) -> float:
+    As = _convert_to_cmu(word_a)
+    Bs = _convert_to_cmu(word_b)
+    res = 0
+    for A in As:
+        for B in Bs:
+            edit_dist = nltk.edit_distance(A, B)
+            res = max(res, 1 / (edit_dist + 1))
+    return res
+
 def rmetric_cmu_w2w(word_a: str, word_b: str) -> float:
     # TODO: how about using activation function on this?
-    return _calc_rhymeness_lcs(word_a, word_b)
+    return _calc_rhymeness_edit(word_a, word_b)
 
 def rmetric_cmu_sent(sentence: str) -> float:
     words = nltk.word_tokenize(sentence)

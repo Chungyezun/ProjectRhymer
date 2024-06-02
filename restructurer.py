@@ -138,7 +138,8 @@ def reorder_inversion(sentence: str) -> list[str]:
     str_res = []
     str_res.extend([' '.join(oc) for oc in total_possiblity])
     res.extend(str_res)
-    return list(set(filter(lambda x: len(x) > 0, res)))
+    final_result = list(set(filter(lambda x: len(x) > 0, res)))
+    return final_result
 
 # Discover some possible reordering of adverbs.
 # maybe use dependency parser and put adverbs around the word
@@ -215,14 +216,22 @@ def reorder_adverb(sentence: str) -> list[str]:
     total_possiblity = itertools.product(*res)
     str_res = []
     str_res.extend([' '.join(oc) for oc in total_possiblity])
-    return list(set(filter(lambda x: len(x) > 0, str_res)))
+    final_result = list(set(filter(lambda x: len(x) > 0, str_res)))
+    print(final_result)
+    return final_result
 
 # Get possible reorder candidates,
 # need to filter out some incorrectly grammared and different meaning sentences.
-def restructure(sentence: str) -> list[str]:
+def restructure(sentence: str, external_url: str | None = None) -> list[str]:
     global _cnlp
-    with _nlpsv:
-        _cnlp = nltk.parse.CoreNLPParser(url=_nlpsv.url)
+    if external_url is None:
+        with _nlpsv:
+            _cnlp = nltk.parse.CoreNLPParser(url=_nlpsv.url)
+            res = reorder_inversion(sentence)
+            res = list(set(sent for target in res for sent in reorder_adverb(target)))
+            _cnlp = None
+    else:
+        _cnlp = nltk.parse.CoreNLPParser(url=external_url)
         res = reorder_inversion(sentence)
         res = list(set(sent for target in res for sent in reorder_adverb(target)))
         _cnlp = None
@@ -234,5 +243,5 @@ if __name__ == '__main__':
         ip = input('> ')
         if ip == '':
             break
-        print(restructure(ip))
+        print(restructure(ip, 'http://localhost:9010'))
 # analyze_sent()

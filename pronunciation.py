@@ -84,7 +84,7 @@ def _is_similar(As: list[list[str]], Bs: list[list[str]], similarity_func: Simil
 
 # Map a word to its pronunciations according to CMU dictionary.
 def mapping_cmu(word: str) -> list[list[str]]:
-    return _cmu()[word]
+    return _cmu()[word.lower()]
 
 # Map a word to its soundex representation. Returns empty list if it is not an alphabet word.
 # Lazy init _soundex.
