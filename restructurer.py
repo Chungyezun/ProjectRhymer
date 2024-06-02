@@ -8,7 +8,11 @@ import math
 
 # In order to use CoreNLP, You should download the CoreNLP from the website
 # [https://stanfordnlp.github.io/CoreNLP/index.html#download]
+# Instead one can use:
+# java -mx1g -cp "*" edu.stanford.nlp.pipeline.StanfordCoreNLPServer -port 9010 -timeout 15000
+# one the same directory with jar
 _nlpsv = nltk.parse.corenlp.CoreNLPServer('./artifacts/stanford-corenlp-4.5.7/stanford-corenlp-4.5.7.jar', './artifacts/stanford-corenlp-4.5.7/stanford-corenlp-4.5.7-models.jar')
+
 _cnlp: None | nltk.parse.CoreNLPParser = None
 _wnlm = nltk.WordNetLemmatizer()
 
@@ -44,7 +48,9 @@ def reorder_inversion(sentence: str) -> list[str]:
                 subtree = stree[0]
                 if isinstance(subtree, nltk.Tree) and subtree.label() == 'S':
                     # Work only on simple sentences
-                    if len(subtree) < 2 or not isinstance(subtree[0], nltk.Tree) or subtree[0].label() != 'NP' or not isinstance(subtree[1], nltk.Tree) or subtree[1].label() != 'VP':
+                    # if len(subtree) < 2 or not isinstance(subtree[0], nltk.Tree) or subtree[0].label() != 'NP' or not isinstance(subtree[1], nltk.Tree) or subtree[1].label() != 'VP':
+                    #     continue
+                    if len(subtree) < 2:
                         continue
                     # If VP (MD? VB_ NP PP)
                     # Put PP out
@@ -217,7 +223,7 @@ def reorder_adverb(sentence: str) -> list[str]:
     str_res = []
     str_res.extend([' '.join(oc) for oc in total_possiblity])
     final_result = list(set(filter(lambda x: len(x) > 0, str_res)))
-    print(final_result)
+    # print(final_result)
     return final_result
 
 # Get possible reorder candidates,
