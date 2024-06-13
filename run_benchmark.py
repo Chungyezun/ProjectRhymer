@@ -54,7 +54,7 @@ def run_all_benchmarks():
     arg_pipesteps: list[tuple[bool, bool]] = [(True, False), (False, True), (True, True)]
     arg_pron_map_thres: list[tuple[P.MappingFn, P.SimilarityFn, str]] = [
         (P.mapping_soundex, P.simfunc_lcs(rel_thres=0.8, abs_thres=3), 'sdx'),
-        (P.mapping_cmu, P.simfunc_lcs(rel_thres=0.7, abs_thres=2)), 'cmu']
+        (P.mapping_cmu, P.simfunc_lcs(rel_thres=0.7, abs_thres=2), 'cmu')]
     arg_sem_model: list[pipeline.SemModel] = ['wordnet', 'bert', 'sentencebert']
 
     for args in itertools.product(arg_pipesteps, arg_pron_map_thres, arg_sem_model):
