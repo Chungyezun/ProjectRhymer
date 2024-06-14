@@ -10,16 +10,18 @@ import evaluation as E
 import pipeline
 
 # === [ Configuration ] ===
-benchmark_mode: bool = False
+benchmark_mode: bool = True
 benchmark_file = 'inputs.txt'
 benchmark_pipeline_replace = True
 benchmark_pipeline_restruct = True
-benchmark_savefile = 'result_replace_restruct.csv'
+# benchmark_savefile = 'result_replace_restruct.csv'
+benchmark_savefile = 'benchmark_repl_rest_cmu_bert.csv'
 benchmark_topk: int = 10
 
-pronunciation_mapping = P.mapping_soundex
+# pronunciation_mapping = P.mapping_soundex
+pronunciation_mapping = P.mapping_cmu
 
-semantics_model: pipeline.SemModel = 'sentencebert'
+semantics_model: pipeline.SemModel = 'bert'
 
 restructure_corenlp_url: str | None = 'http://localhost:9010'
 # restructure_corenlp_url: str | None = None
